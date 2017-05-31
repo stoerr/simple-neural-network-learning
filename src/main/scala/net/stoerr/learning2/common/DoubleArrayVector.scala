@@ -22,6 +22,7 @@ object DoubleArrayVector {
  * @since 12.11.2014
  */
 final class DoubleArrayVector(val self: Array[Double]) {
+  import DoubleArrayVector._
 
   def abs = math.sqrt(this * self)
 

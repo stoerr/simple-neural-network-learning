@@ -17,7 +17,7 @@ trait Buildingblock {
 
   def apply(inputs: Array[Double], parameters: Array[Double]): Array[Double]
 
-  def apply(inputs: Array[Array[Double]], parameters: Array[Double]): Array[Array[Double]] = inputs.map(this.apply(_, parameters))
+  // def apply(inputs: Array[Array[Double]], parameters: Array[Double]): Array[Array[Double]] = inputs.map(this.apply(_, parameters))
 
   /** Partial derivative of something wrt. all parameters when partial derivative of that something wrt. all outputs is outputDerivative. */
   def parameterDerivative(outputDerivative: Array[Double], inputs: Array[Double]): Array[Double]
@@ -46,17 +46,15 @@ case class combined(first: Buildingblock, second: Buildingblock) extends Buildin
   override def inputDerivative(outputDerivative: Array[Double], inputs: Array[Double]): Array[Double] = ???
 }
 
-case class matrixMultiply(numInputs: Int, numOutputs: Int, parameters: Array[Double]) extends Buildingblock {
-  require(numInputs * numOutputs == parameters.length)
-  override val numParameters = parameters.length
-  private val parameterMatrix = parameters.grouped(numInputs).toArray
+case class MatrixMultiply(numInputs: Int, numOutputs: Int) extends Buildingblock {
+  override val numParameters: Int = numInputs * numOutputs
 
   override def apply(inputs: Array[Double], parameters: Array[Double]): Array[Double] =
-    parameterMatrix.map(_ * parameters)
+    parameters.grouped(numInputs).map(_ * parameters).toArray
 
   override def parameterDerivative(outputDerivative: Array[Double], inputs: Array[Double]): Array[Double] =
-    inputs.toBuffer.flatMap(outputDerivative * _).toArray
+    inputs.flatMap(outputDerivative * _)
 
-  override def inputDerivative(outputDerivative: Array[Double], inputs: Array[Double]): Array[Double] =
-    parameterMatrix map (_ * outputDerivative)
+  override def inputDerivative(outputDerivative: Array[Double], inputs: Array[Double]): Array[Double] = ???
+
 }
