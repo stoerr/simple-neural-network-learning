@@ -20,14 +20,14 @@ trait Buildingblock {
   // def apply(inputs: Array[Array[Double]], parameters: Array[Double]): Array[Array[Double]] = inputs.map(this.apply(_, parameters))
 
   /** Partial derivative of something wrt. all parameters when partial derivative of that something wrt. all outputs is outputDerivative. */
-  def parameterDerivative(outputDerivative: Array[Double], inputs: Array[Double]): Array[Double]
+  def parameterDerivative(outputDerivative: Array[Double], inputs: Array[Double], parameters: Array[Double]): Array[Double]
 
   /** Partial derivative of something wrt. all inputs when partial derivative of that something wrt. all outputs is outputDerivative. */
-  def inputDerivative(outputDerivative: Array[Double], inputs: Array[Double]): Array[Double]
+  def inputDerivative(outputDerivative: Array[Double], inputs: Array[Double], parameters: Array[Double]): Array[Double]
 
 }
 
-case class combined(first: Buildingblock, second: Buildingblock) extends Buildingblock {
+case class Combined(first: Buildingblock, second: Buildingblock) extends Buildingblock {
   require(first.numOutputs == second.numInputs)
 
   override val numInputs: Int = first.numInputs
@@ -41,20 +41,22 @@ case class combined(first: Buildingblock, second: Buildingblock) extends Buildin
     second(first(inputs, parameterSplitted._1), parameterSplitted._2)
   }
 
-  override def parameterDerivative(outputDerivative: Array[Double], inputs: Array[Double]): Array[Double] = ???
+  override def parameterDerivative(outputDerivative: Array[Double], inputs: Array[Double], parameters: Array[Double]): Array[Double] = ???
 
-  override def inputDerivative(outputDerivative: Array[Double], inputs: Array[Double]): Array[Double] = ???
+  override def inputDerivative(outputDerivative: Array[Double], inputs: Array[Double], parameters: Array[Double]): Array[Double] = ???
 }
 
 case class MatrixMultiply(numInputs: Int, numOutputs: Int) extends Buildingblock {
   override val numParameters: Int = numInputs * numOutputs
 
   override def apply(inputs: Array[Double], parameters: Array[Double]): Array[Double] =
-    parameters.grouped(numInputs).map(_ * parameters).toArray
+    parameters.grouped(numInputs).map(_ * inputs).toArray
 
-  override def parameterDerivative(outputDerivative: Array[Double], inputs: Array[Double]): Array[Double] =
-    inputs.flatMap(outputDerivative * _)
+  override def parameterDerivative(outputDerivative: Array[Double], inputs: Array[Double], parameters: Array[Double]): Array[Double] =
+    outputDerivative.flatMap(inputs * _)
 
-  override def inputDerivative(outputDerivative: Array[Double], inputs: Array[Double]): Array[Double] = ???
+  override def inputDerivative(outputDerivative: Array[Double], inputs: Array[Double], parameters: Array[Double]): Array[Double] =
+    parameters.grouped(numInputs).toArray.zip(outputDerivative).map(Function.tupled(_ * _)).reduce(_ + _)
+
 
 }
