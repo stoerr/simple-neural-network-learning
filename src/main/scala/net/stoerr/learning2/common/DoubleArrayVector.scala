@@ -1,19 +1,22 @@
 package net.stoerr.learning2.common
 
 import scala.language.implicitConversions
+import scala.util.Random
 
 object DoubleArrayVector {
-  implicit def doubleArrayVector(v: Array[Double]) = new DoubleArrayVector(v)
+  implicit def doubleArrayVector(v: Array[Double]): DoubleArrayVector = new DoubleArrayVector(v)
 
   /** step for numerical calcuations */
   val eps = 1e-6
 
-  def derivation(f: Double => Double, x: Double) = (-f(x + 2 * eps) + 8 * f(x + eps) - 8 * f(x - eps) + f(x - 2 * eps)) / (12 * eps)
+  def derivation(f: Double => Double, x: Double): Double = (-f(x + 2 * eps) + 8 * f(x + eps) - 8 * f(x - eps) + f(x - 2 * eps)) / (12 * eps)
 
-  def gradient(f: Array[Double] => Double, x: Array[Double]) = 0.until(x.length).map { i =>
+  def gradient(f: Array[Double] => Double, x: Array[Double]): Array[Double] = x.indices.map { i =>
     val fprojected = x.baseFunction(i) andThen f
     derivation(fprojected, 0)
   }.toArray
+
+  def randomVector(length: Int): Array[Double] = Array.fill(length)(Random.nextGaussian())
 
 }
 
@@ -24,16 +27,16 @@ object DoubleArrayVector {
 final class DoubleArrayVector(val self: Array[Double]) {
   import DoubleArrayVector._
 
-  def abs = math.sqrt(this * self)
+  def abs: Double = math.sqrt(this * self)
 
-  def elem_abs = self.map(math.abs)
+  def elem_abs: Array[Double] = self.map(math.abs)
 
   def +(other: Array[Double]): Array[Double] = (self, other).zipped.map(_ + _)
 
   def -(other: Array[Double]): Array[Double] = (self, other).zipped.map(_ - _)
 
   /** scalar product */
-  def *(other: Array[Double]): Double = (self, other).zipped.map(_ * _).reduce(_ + _)
+  def *(other: Array[Double]): Double = (self, other).zipped.map(_ * _).sum
 
   def *(other: Double): Array[Double] = self.map(_ * other)
 
@@ -51,7 +54,8 @@ final class DoubleArrayVector(val self: Array[Double]) {
     basePlusArg
   }
 
-  def directionalFunction(func: Array[Double] => Double, dx: Array[Double]) = (v: Double) => func(self + dx * v)
+  def directionalFunction(func: Array[Double] => Double, dx: Array[Double]): (Double) => Double =
+    (v: Double) => func(self + dx * v)
 
   def toRep: String = "Array(" + self.mkString(", ") + ")"
 
