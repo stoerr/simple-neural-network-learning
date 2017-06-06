@@ -22,6 +22,10 @@ trait Buildingblock {
   /** Partial derivative of something wrt. all inputs when partial derivative of that something wrt. all outputs is outputDerivative. */
   def inputDerivative(outputDerivative: Array[Double], inputs: Array[Double], parameters: Array[Double]): Array[Double]
 
+  def +(other: Buildingblock) = Combined(this, other)
+
+  def asDoubleFunction(params: Array[Double]): (Array[Double]) => Array[Double] = (in: Array[Double]) => apply(in, params)
+
 }
 
 case class Combined(first: Buildingblock, second: Buildingblock) extends Buildingblock {
@@ -30,6 +34,8 @@ case class Combined(first: Buildingblock, second: Buildingblock) extends Buildin
   override val numInputs: Int = first.numInputs
   override val numOutputs: Int = second.numOutputs
   override val numParameters: Int = first.numParameters + second.numParameters
+
+  override def toString: String = first + "+" + second
 
   def apply(inputs: Array[Double], parameters: Array[Double]): Array[Double] = {
     require(inputs.length == numInputs)

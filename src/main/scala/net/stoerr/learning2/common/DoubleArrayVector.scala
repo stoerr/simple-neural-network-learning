@@ -29,6 +29,8 @@ final class DoubleArrayVector(val self: Array[Double]) {
 
   def abs: Double = math.sqrt(this * self)
 
+  def sqr: Double = this * self
+
   def elem_abs: Array[Double] = self.map(math.abs)
 
   def +(other: Array[Double]): Array[Double] = (self, other).zipped.map(_ + _)
