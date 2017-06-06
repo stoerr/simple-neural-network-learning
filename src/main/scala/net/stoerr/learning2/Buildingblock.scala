@@ -41,9 +41,22 @@ case class Combined(first: Buildingblock, second: Buildingblock) extends Buildin
     second(first(inputs, parameterSplitted._1), parameterSplitted._2)
   }
 
-  override def parameterDerivative(outputDerivative: Array[Double], inputs: Array[Double], parameters: Array[Double]): Array[Double] = ???
+  override def parameterDerivative(outputDerivative: Array[Double], inputs: Array[Double], parameters: Array[Double]): Array[Double] = {
+    val parameterSplitted = parameters.splitAt(first.numParameters)
+    val secondInputs = first.apply(inputs, parameterSplitted._1)
+    val secondPDeriv = second.parameterDerivative(outputDerivative, secondInputs, parameterSplitted._2)
+    val secondIDeriv = second.inputDerivative(outputDerivative, secondInputs, parameterSplitted._2)
+    val firstPDeriv = first.parameterDerivative(secondIDeriv, inputs, parameterSplitted._1)
+    firstPDeriv ++ secondPDeriv
+  }
 
-  override def inputDerivative(outputDerivative: Array[Double], inputs: Array[Double], parameters: Array[Double]): Array[Double] = ???
+  override def inputDerivative(outputDerivative: Array[Double], inputs: Array[Double], parameters: Array[Double]): Array[Double] = {
+    val parameterSplitted = parameters.splitAt(first.numParameters)
+    val secondInputs = first.apply(inputs, parameterSplitted._1)
+    val secondIDeriv = second.inputDerivative(outputDerivative, secondInputs, parameterSplitted._2)
+    first.inputDerivative(secondIDeriv, inputs, parameterSplitted._1)
+  }
+
 }
 
 /** Simulates a fully connected NN without the activation function (which we put into a separate block for simplicity. */

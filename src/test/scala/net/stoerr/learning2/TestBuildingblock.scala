@@ -42,9 +42,11 @@ class TestBuildingblock extends FlatSpec with Matchers {
 
   }
 
-  "MatrixMultiply" should behave like buildingBlock(new MatrixMultiply(4, 3))
+  "MatrixMultiply" should behave like buildingBlock(MatrixMultiply(4, 3))
 
-  "Sigmoid" should behave like buildingBlock(new Sigmoid(3))
+  "Sigmoid" should behave like buildingBlock(Sigmoid(3))
+
+  "Combined" should behave like buildingBlock(Combined(MatrixMultiply(2, 3), Sigmoid(3)))
 
   def buildingBlock(b: Buildingblock): Unit = {
     val in = randomVector(b.numInputs)
@@ -59,7 +61,7 @@ class TestBuildingblock extends FlatSpec with Matchers {
       val funcOfParam: Array[Double] => Double = i => b(in, i) * outDeriv
       funcOfParam(params) shouldNot be(0.0)
       val paramDeriv = gradient(funcOfParam, params)
-      paramDeriv.abs shouldNot be(0)
+      paramDeriv.abs shouldNot be(0.0)
       b.parameterDerivative(outDeriv, in, params) should be(closeTo(paramDeriv))
     }
 
