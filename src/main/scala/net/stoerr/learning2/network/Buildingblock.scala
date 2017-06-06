@@ -1,10 +1,7 @@
-package net.stoerr.learning2
+package net.stoerr.learning2.network
 
-import javax.print.DocFlavor.BYTE_ARRAY
-
-import language.postfixOps
-import language.implicitConversions
-import common.DoubleArrayVector._
+import scala.language.{implicitConversions, postfixOps}
+import net.stoerr.learning2.common.DoubleArrayVector._
 
 /**
   * Models a buildingblock with some inputs, some outputs and some parameters (= usually weights)
