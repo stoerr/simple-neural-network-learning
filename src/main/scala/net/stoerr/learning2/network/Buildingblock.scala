@@ -38,12 +38,13 @@ case class Combined(first: Buildingblock, second: Buildingblock) extends Buildin
   override def toString: String = first + "+" + second
 
   def apply(inputs: Array[Double], parameters: Array[Double]): Array[Double] = {
-    require(inputs.length == numInputs)
-    require(parameters.length == numParameters)
+    require(inputs.length == numInputs, "inputs " + inputs.length + " but expected " + numInputs)
+    require(parameters.length == numParameters, "parameters " + parameters.length + " but expected " + numParameters)
     val parameterSplitted = parameters.splitAt(first.numParameters)
     second(first(inputs, parameterSplitted._1), parameterSplitted._2)
   }
 
+  // TODO: this is *horribly* inefficient
   override def parameterDerivative(outputDerivative: Array[Double], inputs: Array[Double], parameters: Array[Double]): Array[Double] = {
     val parameterSplitted = parameters.splitAt(first.numParameters)
     val secondInputs = first.apply(inputs, parameterSplitted._1)

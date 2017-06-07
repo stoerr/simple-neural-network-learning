@@ -2,20 +2,11 @@ package net.stoerr.learning2.network
 
 import net.stoerr.learning2.common.DoubleArrayVector._
 import org.scalatest._
-import org.scalatest.matchers.{BeMatcher, MatchResult}
+import TestingHelper._
 
 /** Tests Buildingblocks */
 // http://www.scalatest.org/user_guide/using_matchers
 class TestBuildingblock extends FlatSpec with Matchers {
-
-  def closeTo(value: Array[Double]) = new BeMatcher[Array[Double]] {
-    def apply(left: Array[Double]) =
-      MatchResult(
-        (value - left).abs < eps,
-        "vectors not close enough:\n" + value.mkString(",") + "\n" + left.mkString(","),
-        "vectors close enough:\n" + value.mkString(",") + "\n" + left.mkString(",")
-      )
-  }
 
   "MatrixMultiply" should "pass the explicit check" in {
     val b = MatrixMultiply(3, 2)
