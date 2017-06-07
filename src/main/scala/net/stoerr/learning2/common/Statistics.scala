@@ -1,8 +1,8 @@
 package net.stoerr.learning2.common
 
+import scala.collection.{immutable, GenTraversableOnce}
 import scala.collection.immutable.TreeMap
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.{GenTraversableOnce, immutable}
 
 /**
  * Collects statistics for a single parameter.

@@ -1,7 +1,7 @@
 package net.stoerr.learning2.network
 
-import org.scalatest.matchers.{BeMatcher, MatchResult}
 import net.stoerr.learning2.common.DoubleArrayVector._
+import org.scalatest.matchers.{BeMatcher, MatchResult}
 
 // http://www.scalatest.org/user_guide/using_matchers
 object TestingHelper {

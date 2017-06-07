@@ -2,8 +2,8 @@ package net.stoerr.learning2.network
 
 
 import net.stoerr.learning2.common.DoubleArrayVector._
+import net.stoerr.learning2.network.TestingHelper._
 import org.scalatest._
-import TestingHelper._
 
 class TestExampleSet extends FlatSpec with Matchers {
 

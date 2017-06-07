@@ -1,8 +1,8 @@
 package net.stoerr.learning2.network
 
 import net.stoerr.learning2.common.DoubleArrayVector._
+import net.stoerr.learning2.network.TestingHelper._
 import org.scalatest._
-import TestingHelper._
 
 /** Tests Buildingblocks */
 // http://www.scalatest.org/user_guide/using_matchers
@@ -20,15 +20,15 @@ class TestBuildingblock extends FlatSpec with Matchers {
       funcOfParam(params) should be(60)
       val paramDeriv = gradient(funcOfParam, params)
       paramDeriv should be(closeTo(Array(2.0, 4, 6, 1, 2, 3)))
-      b.parameterDerivative(outDeriv, in, params) should be(closeTo(paramDeriv))
+      b.parameterDerivative(outDeriv, in, params, b(in, params)) should be(closeTo(paramDeriv))
     }
 
     {
       val funcOfInputs: Array[Double] => Double = i => b(i, params) * outDeriv
       funcOfInputs(in) should be(60)
-      val inputDeriv = gradient(funcOfInputs, params)
+      val inputDeriv = gradient(funcOfInputs, in)
       inputDeriv should be(closeTo(Array(6.0, 9, 12)))
-      b.inputDerivative(outDeriv, in, params) should be(closeTo(inputDeriv))
+      b.inputDerivative(outDeriv, in, params, b(in, params)) should be(closeTo(inputDeriv))
     }
 
   }
@@ -53,14 +53,14 @@ class TestBuildingblock extends FlatSpec with Matchers {
       funcOfParam(params) shouldNot be(0.0)
       val paramDeriv = gradient(funcOfParam, params)
       paramDeriv.abs shouldNot be(0.0)
-      b.parameterDerivative(outDeriv, in, params) should be(closeTo(paramDeriv))
+      b.parameterDerivative(outDeriv, in, params, b(in, params)) should be(closeTo(paramDeriv))
     }
 
     it should "have correct inputDerivative" in {
       val funcOfInputs: Array[Double] => Double = i => b(i, params) * outDeriv
       funcOfInputs(in) shouldNot be(0.0)
       val inputDeriv = gradient(funcOfInputs, in)
-      b.inputDerivative(outDeriv, in, params) should be(closeTo(inputDeriv))
+      b.inputDerivative(outDeriv, in, params, b(in, params)) should be(closeTo(inputDeriv))
     }
   }
 

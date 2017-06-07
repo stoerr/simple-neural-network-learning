@@ -1,12 +1,10 @@
 package net.stoerr.learning2.algorithms
 
 import net.stoerr.learning2.common.DValue
-import net.stoerr.learning2.common.DValue._
-
-import net.stoerr.learning2.network._
 import net.stoerr.learning2.common.DoubleArrayVector._
+import net.stoerr.learning2.common.DValue._
+import net.stoerr.learning2.network._
 import org.scalatest._
-import TestingHelper._
 
 class TestRProp extends FlatSpec with Matchers {
 
@@ -35,7 +33,7 @@ class TestRProp extends FlatSpec with Matchers {
     examples += (Array(0.0, 1) -> Array(0))
     examples += (Array(1.0, 1) -> Array(1))
     var startparams = randomVector(nn.numParameters)
-    val startfunc = nn.asDoubleFunction(startparams)
+    def startfunc (in: Array[Double]) = nn(in, startparams)
     for ((in, out) <- examples.examples) println("" + in.toList + " => " + startfunc(in).toList + " vs. " + out.toList)
 
     val f: (Array[Double]) => Double = examples.evaluation(nn)
