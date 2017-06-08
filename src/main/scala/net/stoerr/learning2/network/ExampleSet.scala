@@ -19,13 +19,13 @@ class ExampleSet(val numInputs: Int, val numOutputs: Int) {
   private def sqr(x: Double) = x * x
 
   def evaluation(nn: Buildingblock)(params: Array[Double]): Double =
-    examples map { case (in, out) => nn(in, params) - out } map (_.sqr) sum
+    examples map { case (in, out) => nn(params)(in) - out } map (_.sqr) sum
 
   def evaluationWithGradient(nn: Buildingblock)(params: Array[Double]): (Double, Array[Double]) = {
     val exampleGrads = examples map { case (in, out) =>
-      val realout = nn(in, params)
+      val realout = nn(params)(in)
       val outDif = realout - out
-      val grad = nn.parameterDerivative(outDif * 2, in, params, realout)
+      val grad = nn.parameterGradient(params, in, realout, outDif * 2)
       (outDif.sqr, grad)
     }
     (exampleGrads.map(_._1).sum, exampleGrads.map(_._2).reduce(_ + _))

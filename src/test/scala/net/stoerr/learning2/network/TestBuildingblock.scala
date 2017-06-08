@@ -13,22 +13,22 @@ class TestBuildingblock extends FlatSpec with Matchers {
     val params = Array(1.0, 2, 3, 4, 5, 6)
     val in = Array(1.0, 2, 3)
     val outDeriv = Array(2.0, 1.0)
-    b(in, params) should be(closeTo(Array(14.0, 32)))
+    b(params)(in) should be(closeTo(Array(14.0, 32)))
 
     {
-      val funcOfParam: Array[Double] => Double = i => b(in, i) * outDeriv
+      val funcOfParam: Array[Double] => Double = i => b(i)(in) * outDeriv
       funcOfParam(params) should be(60)
       val paramDeriv = gradient(funcOfParam, params)
       paramDeriv should be(closeTo(Array(2.0, 4, 6, 1, 2, 3)))
-      b.parameterDerivative(outDeriv, in, params, b(in, params)) should be(closeTo(paramDeriv))
+      b.parameterGradient(params, in, b(params)(in), outDeriv) should be(closeTo(paramDeriv))
     }
 
     {
-      val funcOfInputs: Array[Double] => Double = i => b(i, params) * outDeriv
+      val funcOfInputs: Array[Double] => Double = i => b(params)(i) * outDeriv
       funcOfInputs(in) should be(60)
       val inputDeriv = gradient(funcOfInputs, in)
       inputDeriv should be(closeTo(Array(6.0, 9, 12)))
-      b.inputDerivative(outDeriv, in, params, b(in, params)) should be(closeTo(inputDeriv))
+      b.inputGradient(params, in, b(params)(in), outDeriv) should be(closeTo(inputDeriv))
     }
 
   }
@@ -45,22 +45,22 @@ class TestBuildingblock extends FlatSpec with Matchers {
     val outDeriv = randomVector(b.numOutputs)
 
     it should "calculate something" in {
-      b(in, params).abs shouldNot be(0.0)
+      b(params)(in).abs shouldNot be(0.0)
     }
 
     it should "have correct parameterDerivative" in {
-      val funcOfParam: Array[Double] => Double = i => b(in, i) * outDeriv
+      val funcOfParam: Array[Double] => Double = i => b(i)(in) * outDeriv
       funcOfParam(params) shouldNot be(0.0)
       val paramDeriv = gradient(funcOfParam, params)
       paramDeriv.abs shouldNot be(0.0)
-      b.parameterDerivative(outDeriv, in, params, b(in, params)) should be(closeTo(paramDeriv))
+      b.parameterGradient(params, in, b(params)(in), outDeriv) should be(closeTo(paramDeriv))
     }
 
     it should "have correct inputDerivative" in {
-      val funcOfInputs: Array[Double] => Double = i => b(i, params) * outDeriv
+      val funcOfInputs: Array[Double] => Double = i => b(params)(i) * outDeriv
       funcOfInputs(in) shouldNot be(0.0)
       val inputDeriv = gradient(funcOfInputs, in)
-      b.inputDerivative(outDeriv, in, params, b(in, params)) should be(closeTo(inputDeriv))
+      b.inputGradient(params, in, b(params)(in), outDeriv) should be(closeTo(inputDeriv))
     }
   }
 
