@@ -23,10 +23,12 @@ class ExampleSet(val numInputs: Int, val numOutputs: Int) {
 
   def evaluationWithGradient(nn: Buildingblock)(params: Array[Double]): (Double, Array[Double]) = {
     val exampleGrads = examples map { case (in, out) =>
-      val realout = nn(params)(in)
-      val outDif = realout - out
-      val grad = nn.parameterGradient(params, in, realout, outDif * 2)
-      (outDif.sqr, grad)
+      def gradFunc(nnout: Array[Double]): (Double, Array[Double]) = {
+        val outDif = nnout - out
+        (outDif.sqr, outDif * 2)
+      }
+
+      nn.gradient(params, in, gradFunc)
     }
     (exampleGrads.map(_._1).sum, exampleGrads.map(_._2).reduce(_ + _))
   }

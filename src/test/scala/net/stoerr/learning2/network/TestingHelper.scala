@@ -7,12 +7,18 @@ import org.scalatest.matchers.{BeMatcher, MatchResult}
 object TestingHelper {
 
   def closeTo(value: Array[Double]) = new BeMatcher[Array[Double]] {
-    def apply(left: Array[Double]) =
-      MatchResult(
+    def apply(left: Array[Double]): MatchResult = {
+      if (value.length != left.length) MatchResult(
+        false,
+        "vectors have different length: " + value.length + " != " + left.length + "\n" + value.mkString(",") + "\n" + left.mkString(","),
+        "vectors have same length: " + value.length + " == " + left.length + "\n" + value.mkString(",") + "\n" + left.mkString(",")
+      )
+      else MatchResult(
         (value - left).abs < eps,
         "vectors not close enough:\n" + value.mkString(",") + "\n" + left.mkString(","),
         "vectors close enough:\n" + value.mkString(",") + "\n" + left.mkString(",")
       )
+    }
   }
 
 }

@@ -25,6 +25,35 @@ trait Buildingblock {
   /** Partial derivative of something wrt. all inputs when partial derivative of that something wrt. all outputs is outputDerivative. */
   def inputGradient(parameters: Array[Double], inputs: Array[Double], calculatedOutputs: Array[Double], outputDerivative: Array[Double]): Array[Double]
 
+  /** For efficient calculation of gradients for evaluation of a chain of units.
+    *
+    * @param parameters the parameters for us
+    * @param chain      function of our outputs to the evaluation, the gradient of the evaluation wrt. our outputs and a gradient of the evaluation wrt. parameters of the rest of the chain
+    * @return function of our inputs to the evaluation, the gradient of the evaluation wrt. our inputs and a gradient of the evaluation wrt. parameters of us <b>and</b> the rest of the chain
+    */
+  def gradientChain(parameters: Array[Double], chain: Array[Double] => (Double, Array[Double], Array[Double])): Array[Double] => (Double, Array[Double], Array[Double]) = {
+    require(parameters.length == numParameters, "parameters " + parameters.length + " but expected " + numParameters)
+    (inputs: Array[Double]) => {
+      require(inputs.length == numInputs, "inputs " + inputs.length + " but expected " + numInputs)
+      val outputs = this (parameters)(inputs)
+      val (evaluation, evalInputGradient, evalParameterGradient) = chain(outputs)
+      (evaluation, inputGradient(parameters, inputs, outputs, evalInputGradient),
+        parameterGradient(parameters, inputs, outputs, evalInputGradient) ++ evalParameterGradient)
+    }
+  }
+
+  /** Calculates an evaluation and its gradients.
+    *
+    * @param parameters       the parameters for us
+    * @param evalWithGradient function of our outputs to the evaluation and the gradient of the evaluation wrt. our outputs
+    * @return the evaluation, the gradient of the evaluation wrt. our parameters
+    */
+  def gradient(parameters: Array[Double], inputs: Array[Double], evalWithGradient: Array[Double] => (Double, Array[Double])): (Double, Array[Double]) = {
+    require(inputs.length == numInputs, "inputs " + inputs.length + " but expected " + numInputs)
+    require(parameters.length == numParameters, "parameters " + parameters.length + " but expected " + numParameters)
+    val chain = evalWithGradient.andThen(eg => (eg._1, eg._2, Array[Double]()))
+    gradientChain(parameters, chain).andThen(g => (g._1, g._3))(inputs)
+  }
 }
 
 case class Combined(first: Buildingblock, second: Buildingblock) extends Buildingblock {
@@ -43,24 +72,17 @@ case class Combined(first: Buildingblock, second: Buildingblock) extends Buildin
     second(parameterSplitted._2)(first(parameterSplitted._1)(inputs))
   }
 
-  // TODO: this is *horribly* inefficient
-  override def parameterGradient(parameters: Array[Double], inputs: Array[Double], calculatedOutputs: Array[Double], outputDerivative: Array[Double]): Array[Double] = {
-    val parameterSplitted = parameters.splitAt(first.numParameters)
-    val secondInputs = first(parameterSplitted._1)(inputs)
-    val secondOutputs = second(parameterSplitted._2)(secondInputs)
-    val secondPDeriv = second.parameterGradient(parameterSplitted._2, secondInputs, secondOutputs, outputDerivative)
-    val secondIDeriv = second.inputGradient(parameterSplitted._2, secondInputs, secondOutputs, outputDerivative)
-    val firstPDeriv = first.parameterGradient(parameterSplitted._1, inputs, secondInputs, secondIDeriv)
-    firstPDeriv ++ secondPDeriv
-  }
+  /** not implemented since it would be horribly inefficient and gradientChain works otherwise. */
+  override def parameterGradient(parameters: Array[Double], inputs: Array[Double], calculatedOutputs: Array[Double], outputDerivative: Array[Double]): Array[Double] = ???
 
-  // TODO: this is *horribly* inefficient
-  override def inputGradient(parameters: Array[Double], inputs: Array[Double], calculatedOutputs: Array[Double], outputDerivative: Array[Double]): Array[Double] = {
+  /** not implemented since it would be horribly inefficient and gradientChain works otherwise. */
+  override def inputGradient(parameters: Array[Double], inputs: Array[Double], calculatedOutputs: Array[Double], outputDerivative: Array[Double]): Array[Double] = ???
+
+  override
+  def gradientChain(parameters: Array[Double], chain: Array[Double] => (Double, Array[Double], Array[Double])): (Array[Double]) => (Double, Array[Double], Array[Double]) = {
+    require(parameters.length == numParameters, "parameters " + parameters.length + " but expected " + numParameters)
     val parameterSplitted = parameters.splitAt(first.numParameters)
-    val secondInputs = first(parameterSplitted._1)(inputs)
-    val secondOutputs = second(parameterSplitted._2)(secondInputs)
-    val secondIDeriv = second.inputGradient(parameterSplitted._2, secondInputs, secondOutputs, outputDerivative)
-    first.inputGradient(parameterSplitted._1, inputs, secondInputs, secondIDeriv)
+    first.gradientChain(parameterSplitted._1, second.gradientChain(parameterSplitted._2, chain))
   }
 
 }

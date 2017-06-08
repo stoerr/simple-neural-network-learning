@@ -21,10 +21,11 @@ object DoubleArrayVector {
 }
 
 /**
- * @author <a href="http://www.stoerr.net/">Hans-Peter Stoerr</a>
- * @since 12.11.2014
- */
+  * @author <a href="http://www.stoerr.net/">Hans-Peter Stoerr</a>
+  * @since 12.11.2014
+  */
 final class DoubleArrayVector(val self: Array[Double]) {
+
   import DoubleArrayVector._
 
   def abs: Double = math.sqrt(this * self)
@@ -33,17 +34,29 @@ final class DoubleArrayVector(val self: Array[Double]) {
 
   def elem_abs: Array[Double] = self.map(math.abs)
 
-  def +(other: Array[Double]): Array[Double] = (self, other).zipped.map(_ + _)
+  def +(other: Array[Double]): Array[Double] = {
+    require(self.length == other.self.length)
+    (self, other).zipped.map(_ + _)
+  }
 
-  def -(other: Array[Double]): Array[Double] = (self, other).zipped.map(_ - _)
+  def -(other: Array[Double]): Array[Double] = {
+    require(self.length == other.self.length)
+    (self, other).zipped.map(_ - _)
+  }
 
   /** scalar product */
-  def *(other: Array[Double]): Double = (self, other).zipped.map(_ * _).sum
+  def *(other: Array[Double]): Double = {
+    require(self.length == other.self.length)
+    (self, other).zipped.map(_ * _).sum
+  }
 
   def *(other: Double): Array[Double] = self.map(_ * other)
 
   /** elementwise product */
-  def elem_*(other: Array[Double]): Array[Double] = (self, other).zipped.map(_ * _)
+  def elem_*(other: Array[Double]): Array[Double] = {
+    require(self.length == other.self.length)
+    (self, other).zipped.map(_ * _)
+  }
 
   def /(other: Double): Array[Double] = self.map(_ / other)
 
