@@ -39,6 +39,22 @@ object Term {
     case Product(factors) => factors.map(eval(_, valuation)).product
     case Quotient(val1, val2) => eval(val1, valuation) / eval(val2, valuation)
   }
+
+  def derive(term: Term, v: Var): Term = {
+    def d(t: Term): Term = t match {
+      case Const(c) => Const(0)
+      case vn: Var => if (v == vn) Const(1) else Const(0)
+      case Sum(summands) => Sum(summands.map(d))
+      case Minus(val1, val2) => d(val1) - d(val2)
+      case Product(factors) => factors match {
+        case a :: Nil => d(a)
+        case a :: rest => d(a) * Product(rest) + a * d(Product(rest))
+      }
+      case Quotient(val1, val2) => (d(val1) * val2 - val1 * d(val2)) / (val2 * val2)
+    }
+
+    d(term).normalize
+  }
 }
 
 case class Const(value: Double) extends Term {
@@ -60,7 +76,7 @@ case class Sum(summands: List[Term]) extends Term {
     val flattened = summands map (_.normalize) flatMap {
       case t: Sum => t.summands
       case other => List(other)
-    }
+    } filterNot (_ == Const(0))
     if (flattened.isEmpty) this else if (flattened.length == 1) flattened(0) else Sum(flattened)
   }
 
@@ -80,8 +96,11 @@ case class Product(factors: List[Term]) extends Term {
     val flattened = factors map (_.normalize) flatMap {
       case t: Product => t.factors
       case other => List(other)
-    }
-    if (flattened.isEmpty) this else if (flattened.length == 1) flattened(0) else Product(flattened)
+    } filterNot (_ == Const(1))
+    if (flattened.contains(Const(0))) Const(0)
+    else if (flattened.isEmpty) this
+    else if (flattened.length == 1) flattened(0)
+    else Product(flattened)
   }
 
   override def immediateSubterms: Iterator[Term] = factors.iterator
