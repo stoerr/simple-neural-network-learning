@@ -21,7 +21,7 @@ object Term {
 
   implicit def apply(constant: Int): Const = Const(constant)
 
-  implicit def apply(name: String): Var = Var(name)
+  implicit def apply(name: Symbol): Var = Var(name)
 
   def apply[T <: Term](term: T): T = term
 }
@@ -30,8 +30,8 @@ case class Const(value: Double) extends Term {
   override def toString: String = value.toString
 }
 
-case class Var(name: String) extends Term {
-  override def toString: String = name
+case class Var(name: Symbol) extends Term {
+  override def toString: String = name.name
 }
 
 case class Sum(summands: List[Term]) extends Term {
