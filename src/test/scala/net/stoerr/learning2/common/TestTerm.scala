@@ -29,6 +29,7 @@ class TestTerm extends FlatSpec with Matchers {
     derive('a * 'b, 'b).toString should be("a")
     derive('a / 'b, 'b).toString should be("((0.0 - a) / (b * b))")
     derive('a * 'a * 'a * 'b, 'a).toString should be("((a * a * b) + (a * a * b) + (a * a * b))")
+    simplify(derive('a * 'a * 'a * 'b, 'a)).toString should be("(3.0 * a * a * b)")
   }
 
 }

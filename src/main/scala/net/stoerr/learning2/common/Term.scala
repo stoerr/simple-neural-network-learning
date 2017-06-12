@@ -18,7 +18,7 @@ sealed trait Term extends Comparable[Term] {
 
   def subterms: Iterator[Term] = immediateSubterms ++ Iterator(this)
 
-  def variables = subterms.filter(_.isInstanceOf[Var])
+  def variables: Iterator[Term] = subterms.filter(_.isInstanceOf[Var])
 
   def subst(f: Term => Term): Term
 
@@ -34,6 +34,7 @@ sealed trait Term extends Comparable[Term] {
 
 /** Various term functions */
 object Term {
+  
   implicit def apply(constant: Double): Const = Const(constant)
 
   implicit def apply(constant: Int): Const = Const(constant)
@@ -70,16 +71,26 @@ object Term {
     expand(d(term))
   }
 
-  def expand(term: Term) = term.normalize.substRules({
-    case Product(factors) if (factors.exists(_.isInstanceOf[Sum])) =>
+  def expand(term: Term): Term = term.normalize.substRules({
+    case Product(factors) if factors.exists(_.isInstanceOf[Sum]) =>
       val sumlist: List[List[Term]] = factors map {
         case Sum(summands) => summands
         case t => List(t)
       }
       val summandCombinations: List[List[Term]] = sumlist
         .foldRight(List[List[Term]](Nil))((el, rest) => el.flatMap(p => rest.map(p :: _)))
-      Sum(summandCombinations.map(Product(_)))
+      Sum(summandCombinations.map(Product))
   }).normalize
+
+  def simplify(term: Term): Term = expand(term).substRules({
+    case Sum(summands) =>
+      val duplicates: Map[Term, List[Term]] = summands.groupBy((t: Term) => t)
+      if (duplicates.exists(_._2.length > 1))
+        Sum((summands.filterNot(duplicates.contains) ++ duplicates.map(p => Const(p._2.length) * p._1)).sorted)
+      else Sum(summands.sorted)
+    case Product(factors) => Product(factors.sorted)
+  }).normalize
+
 }
 
 case class Const(value: Double) extends Term {
@@ -118,7 +129,7 @@ case class Sum(summands: List[Term]) extends Term {
   override def subst(f: Term => Term): Term = f(Sum(summands map f))
 
   override protected def internalCompare(o: this.type): Int =
-    (summands.view, o.summands.view).zipped.map(_.compareTo(_)).find(_ != 0).getOrElse(0)
+    (summands, o.summands).zipped.map(_.compareTo(_)).find(_ != 0).getOrElse(0)
 }
 
 case class Minus(value1: Term, value2: Term) extends Term {
@@ -151,7 +162,7 @@ case class Product(factors: List[Term]) extends Term {
   override def subst(f: Term => Term): Term = f(Product(factors map f))
 
   override protected def internalCompare(o: this.type): Int =
-    (factors.view, o.factors.view).zipped.map(_.compareTo(_)).find(_ != 0).getOrElse(0)
+    (factors, o.factors).zipped.map(_.compareTo(_)).find(_ != 0).getOrElse(0)
 }
 
 case class Quotient(value1: Term, value2: Term) extends Term {
