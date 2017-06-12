@@ -16,9 +16,13 @@ sealed trait Term {
 
   def immediateSubterms: Iterator[Term]
 
-  def subterms: Iterator[Term] = Iterator(this) ++ immediateSubterms
+  def subterms: Iterator[Term] = immediateSubterms ++ Iterator(this)
 
   def variables = subterms.filter(_.isInstanceOf[Var])
+
+  def subst(f: Term => Term): Term
+
+  def substRules(f: PartialFunction[Term, Term]): Term = subst(t => if (f.isDefinedAt(t)) f(t) else t)
 }
 
 /** Various term functions */
@@ -47,26 +51,42 @@ object Term {
       case Sum(summands) => Sum(summands.map(d))
       case Minus(val1, val2) => d(val1) - d(val2)
       case Product(factors) => factors match {
+        case Nil => Const(0) // empty product means 1
         case a :: Nil => d(a)
         case a :: rest => d(a) * Product(rest) + a * d(Product(rest))
       }
       case Quotient(val1, val2) => (d(val1) * val2 - val1 * d(val2)) / (val2 * val2)
     }
 
-    d(term).normalize
+    expand(d(term))
   }
+
+  def expand(term: Term) = term.normalize.substRules({
+    case Product(factors) if (factors.exists(_.isInstanceOf[Sum])) =>
+      val sumlist: List[List[Term]] = factors map {
+        case Sum(summands) => summands
+        case t => List(t)
+      }
+      val summandCombinations: List[List[Term]] = sumlist
+        .foldRight(List[List[Term]](Nil))((el, rest) => el.flatMap(p => rest.map(p :: _)))
+      Sum(summandCombinations.map(Product(_)))
+  }).normalize
 }
 
 case class Const(value: Double) extends Term {
   override def toString: String = value.toString
 
   override def immediateSubterms: Iterator[Term] = Iterator.empty
+
+  override def subst(f: Term => Term): Term = f(this)
 }
 
 case class Var(name: Symbol) extends Term {
   override def toString: String = name.name
 
   override def immediateSubterms: Iterator[Term] = Iterator.empty
+
+  override def subst(f: Term => Term): Term = f(this)
 }
 
 case class Sum(summands: List[Term]) extends Term {
@@ -81,12 +101,16 @@ case class Sum(summands: List[Term]) extends Term {
   }
 
   override def immediateSubterms: Iterator[Term] = summands.toIterator
+
+  override def subst(f: Term => Term): Term = f(Sum(summands map f))
 }
 
 case class Minus(value1: Term, value2: Term) extends Term {
   override def toString: String = "(" + value1 + " - " + value2 + ")"
 
   override def immediateSubterms: Iterator[Term] = Iterator(value1, value2)
+
+  override def subst(f: Term => Term): Term = f(Minus(f(value1), f(value2)))
 }
 
 case class Product(factors: List[Term]) extends Term {
@@ -104,10 +128,14 @@ case class Product(factors: List[Term]) extends Term {
   }
 
   override def immediateSubterms: Iterator[Term] = factors.iterator
+
+  override def subst(f: Term => Term): Term = f(Product(factors map f))
 }
 
 case class Quotient(value1: Term, value2: Term) extends Term {
   override def toString: String = "(" + value1 + " / " + value2 + ")"
 
   override def immediateSubterms: Iterator[Term] = Iterator(value1, value2)
+
+  override def subst(f: Term => Term): Term = f(Quotient(f(value1), f(value2)))
 }

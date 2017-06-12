@@ -12,6 +12,11 @@ class TestTerm extends FlatSpec with Matchers {
     ('a + 'b + 'c + (1 * 2 * Var('b) * 'c) / 5 - 7).toString should be("((a + b + c + ((2.0 * b * c) / 5.0)) - 7.0)")
   }
 
+  it should "normalize properly" in {
+    (('a + 'b) + (('c + ('x + 'y) + 'd) + ('e + 'f))).normalize.toString should be ("(a + b + c + x + y + d + e + f)")
+    (('a * 'b) * (('c * ('x * 'y) * 'd) * ('e * 'f))).normalize.toString should be ("(a * b * c * x * y * d * e * f)")
+  }
+
   it should "have an evaluation" in {
     val t = 'a / 'e + 'b * 'c - 5
     t.toString should be("(((a / e) + (b * c)) - 5.0)")
@@ -23,7 +28,7 @@ class TestTerm extends FlatSpec with Matchers {
     derive('a + 'b * 2, 'b).toString should be("2.0")
     derive('a * 'b, 'b).toString should be("a")
     derive('a / 'b, 'b).toString should be("((0.0 - a) / (b * b))")
-    derive('a * 'a * 'a * 'b, 'a).toString should be("((a * a * b) + (a * ((a * b) + (a * b))))")
+    derive('a * 'a * 'a * 'b, 'a).toString should be("((a * a * b) + (a * a * b) + (a * a * b))")
   }
 
 }
