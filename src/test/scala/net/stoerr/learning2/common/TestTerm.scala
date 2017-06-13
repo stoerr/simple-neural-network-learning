@@ -13,8 +13,8 @@ class TestTerm extends FlatSpec with Matchers {
   }
 
   it should "normalize properly" in {
-    (('a + 'b) + (('c + ('x + 'y) + 'd) + ('e + 'f))).normalize.toString should be ("(a + b + c + x + y + d + e + f)")
-    (('a * 'b) * (('c * ('x * 'y) * 'd) * ('e * 'f))).normalize.toString should be ("(a * b * c * x * y * d * e * f)")
+    (('a + 'b) + (('c + ('x + 'y) + 'd) + ('e + 'f))).normalize.toString should be("(a + b + c + x + y + d + e + f)")
+    (('a * 'b) * (('c * ('x * 'y) * 'd) * ('e * 'f))).normalize.toString should be("(a * b * c * x * y * d * e * f)")
   }
 
   it should "have an evaluation" in {
@@ -27,9 +27,14 @@ class TestTerm extends FlatSpec with Matchers {
   it should "implement derive" in {
     derive('a + 'b * 2, 'b).toString should be("2.0")
     derive('a * 'b, 'b).toString should be("a")
-    derive('a / 'b, 'b).toString should be("((0.0 - a) / (b * b))")
+    derive('a / 'b, 'b).toString should be("((-1.0 * a) / (b * b))")
     derive('a * 'a * 'a * 'b, 'a).toString should be("((a * a * b) + (a * a * b) + (a * a * b))")
     simplify(derive('a * 'a * 'a * 'b, 'a)).toString should be("(3.0 * a * a * b)")
+    val t: Term = 'a / 'b + 'c * 'c
+    t.subterms.toList.toString() should be("List(a, b, (a / b), c, c, (c * c), ((a / b) + (c * c)))")
+    t.variables.toString() should be("List(a, b, c)")
+    t.variables.map(v => simplify(simplify(derive(t, v)))).toString() should
+      be("List((b / (b * b)), ((-1.0 * a) / (b * b)), (2.0 * c))")
   }
 
 }

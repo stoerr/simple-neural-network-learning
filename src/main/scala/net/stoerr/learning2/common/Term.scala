@@ -16,17 +16,17 @@ sealed trait Term extends Comparable[Term] {
 
   def immediateSubterms: Iterator[Term]
 
-  def subterms: Iterator[Term] = immediateSubterms ++ Iterator(this)
+  def subterms: Iterator[Term] = immediateSubterms.flatMap(_.subterms) ++ Iterator(this)
 
-  def variables: Iterator[Term] = subterms.filter(_.isInstanceOf[Var])
+  def variables: List[Var] = subterms.filter(_.isInstanceOf[Var]).toSet.toList.sorted.map(_.asInstanceOf[Var])
 
   def subst(f: Term => Term): Term
 
   def substRules(f: PartialFunction[Term, Term]): Term = subst(t => if (f.isDefinedAt(t)) f(t) else t)
 
-  override def compareTo(o: Term): Int = {
-    var res = Term.types.indexOf(o.getClass) - Term.types.indexOf(this.getClass)
-    if (res != 0) res else internalCompare(o.asInstanceOf[this.type])
+  override def compareTo(other: Term): Int = {
+    var res = Term.types.indexOf(this.getClass) - Term.types.indexOf(other.getClass)
+    if (res != 0) res else internalCompare(other.asInstanceOf[this.type])
   }
 
   protected def internalCompare(o: this.type): Int
@@ -34,14 +34,14 @@ sealed trait Term extends Comparable[Term] {
 
 /** Various term functions */
 object Term {
-  
+
   implicit def apply(constant: Double): Const = Const(constant)
 
   implicit def apply(constant: Int): Const = Const(constant)
 
   implicit def apply(name: Symbol): Var = Var(name)
 
-  protected val types: List[Class[_]] = List(Const.getClass, Var.getClass, Sum.getClass, Minus.getClass, Product.getClass, Quotient.getClass)
+  protected val types: List[Class[_]] = List(classOf[Const], classOf[Var], classOf[Sum], classOf[Minus], classOf[Product], classOf[Quotient])
 
   def apply[T <: Term](term: T): T = term
 
@@ -86,7 +86,7 @@ object Term {
     case Sum(summands) =>
       val duplicates: Map[Term, List[Term]] = summands.groupBy((t: Term) => t)
       if (duplicates.exists(_._2.length > 1))
-        Sum((summands.filterNot(duplicates.contains) ++ duplicates.map(p => Const(p._2.length) * p._1)).sorted)
+        Sum((summands.filterNot(duplicates.contains) ++ duplicates.map(p => simplify(Const(p._2.length) * p._1))).sorted)
       else Sum(summands.sorted)
     case Product(factors) => Product(factors.sorted)
   }).normalize
@@ -141,6 +141,13 @@ case class Minus(value1: Term, value2: Term) extends Term {
 
   override protected def internalCompare(o: this.type): Int =
     Ordering[(Term, Term)].compare((this.value1, this.value2), (o.value1, o.value2))
+
+  override def normalize: Term = Minus(value1.normalize, value2.normalize) match {
+    case Minus(Const(a), Const(b)) => Const(a - b)
+    case Minus(Const(0), value) => (Const(-1) * value).normalize
+    case Minus(value, Const(0)) => value
+    case other => other
+  }
 }
 
 case class Product(factors: List[Term]) extends Term {
@@ -174,4 +181,11 @@ case class Quotient(value1: Term, value2: Term) extends Term {
 
   override protected def internalCompare(o: this.type): Int =
     Ordering[(Term, Term)].compare((this.value1, this.value2), (o.value1, o.value2))
+
+  override def normalize: Term = Quotient(value1.normalize, value2.normalize) match {
+    case Quotient(Const(0), _) => Const(0)
+    case Quotient(value, Const(1)) => value
+    case Quotient(Const(a), Const(b)) => Const(a / b)
+    case other => other
+  }
 }
