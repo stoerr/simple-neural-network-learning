@@ -2,6 +2,8 @@ package net.stoerr.learning2.common
 
 import net.stoerr.learning2.common.Term._
 import org.scalatest._
+import DoubleArrayVector.derivation
+import net.stoerr.learning2.network.TestingHelper._
 
 import scala.language.implicitConversions
 
@@ -31,10 +33,23 @@ class TestTerm extends FlatSpec with Matchers {
     derive('a * 'a * 'a * 'b, 'a).toString should be("((a * a * b) + (a * a * b) + (a * a * b))")
     simplify(derive('a * 'a * 'a * 'b, 'a)).toString should be("(3.0 * a * a * b)")
     val t: Term = 'a / 'b + 'c * 'c
-    t.subterms.toList.toString() should be("List(a, b, (a / b), c, c, (c * c), ((a / b) + (c * c)))")
-    t.variables.toString() should be("List(a, b, c)")
-    t.variables.map(v => simplify(simplify(derive(t, v)))).toString() should
-      be("List((b / (b * b)), ((-1.0 * a) / (b * b)), (2.0 * c))")
+    t.subterms.toList.mkString(", ") should be("a, b, (a / b), c, c, (c * c), ((a / b) + (c * c))")
+    t.variables.mkString(", ") should be("a, b, c")
+    t.variables.map(v => simplify(simplify(derive(t, v)))).mkString(", ") should
+      be("(b / (b * b)), ((-1.0 * a) / (b * b)), (2.0 * c)")
+  }
+
+  it should "implement evalWithGradient" in {
+    val t = 'a / 'b + 'c * 'c * 'd
+    val valu = Map('a -> 2.0, 'b -> 3.0, 'c -> 5.0, 'd -> 7.0)
+    val eg = evalWithGradient(t, valu)
+    eg._1 should be(eval(t, valu))
+    val vars = t.variables
+
+    def f(v: Symbol)(x: Double) = eval(t, valu + (v -> (valu(v) + x)))
+
+    val grad = vars.map(v => derivation(f(v.name), 0.0))
+    vars.map(v => eg._2(v.name)).toArray should be(closeTo(grad.toArray))
   }
 
 }

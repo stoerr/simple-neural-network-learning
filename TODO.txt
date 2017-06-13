@@ -1,0 +1,4 @@
+Next steps:
+- Term.evalWithGradient
+- Term.evalWithGradientAndDerivations
+- NN.evalWithGradientAndDerivations

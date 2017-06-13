@@ -4,11 +4,11 @@ import scala.language.implicitConversions
 
 /** Models a term. */
 sealed trait Term extends Comparable[Term] {
-  def +(o: Term): Term = Sum(List(this, o)).normalize
+  def +(o: Term): Term = Sum(Vector(this, o)).normalize
 
   def -(o: Term): Term = Minus(this, o)
 
-  def *(o: Term): Term = Product(List(this, o)).normalize
+  def *(o: Term): Term = Product(Vector(this, o)).normalize
 
   def /(o: Term): Term = Quotient(this, o)
 
@@ -18,14 +18,14 @@ sealed trait Term extends Comparable[Term] {
 
   def subterms: Iterator[Term] = immediateSubterms.flatMap(_.subterms) ++ Iterator(this)
 
-  def variables: List[Var] = subterms.filter(_.isInstanceOf[Var]).toSet.toList.sorted.map(_.asInstanceOf[Var])
+  def variables: Vector[Var] = subterms.filter(_.isInstanceOf[Var]).toSet.toVector.sorted.map(_.asInstanceOf[Var])
 
   def subst(f: Term => Term): Term
 
   def substRules(f: PartialFunction[Term, Term]): Term = subst(t => if (f.isDefinedAt(t)) f(t) else t)
 
   override def compareTo(other: Term): Int = {
-    var res = Term.types.indexOf(this.getClass) - Term.types.indexOf(other.getClass)
+    val res = Term.types.indexOf(this.getClass) - Term.types.indexOf(other.getClass)
     if (res != 0) res else internalCompare(other.asInstanceOf[this.type])
   }
 
@@ -41,7 +41,7 @@ object Term {
 
   implicit def apply(name: Symbol): Var = Var(name)
 
-  protected val types: List[Class[_]] = List(classOf[Const], classOf[Var], classOf[Sum], classOf[Minus], classOf[Product], classOf[Quotient])
+  protected val types: Vector[Class[_]] = Vector(classOf[Const], classOf[Var], classOf[Sum], classOf[Minus], classOf[Product], classOf[Quotient])
 
   def apply[T <: Term](term: T): T = term
 
@@ -54,37 +54,56 @@ object Term {
     case Quotient(val1, val2) => eval(val1, valuation) / eval(val2, valuation)
   }
 
+  def evalWithGradient(term: Term, valuation: Map[Symbol, Double]): (Double, Map[Symbol, Double]) = term match {
+    case Const(c) => (c, Map())
+    case Var(n) => (valuation(n), Map(n -> 1.0))
+    case Sum(summands) =>
+      val parts = summands.map(evalWithGradient(_, valuation))
+      (parts.map(_._1).sum, valuation.keys.map(k => k -> parts.map(_._2.getOrElse(k, 0.0)).sum).toMap)
+    case Minus(val1, val2) =>
+      val (p1, p2) = (evalWithGradient(val1, valuation), evalWithGradient(val2, valuation))
+      (p1._1 - p2._1, valuation.keys.map(k => k -> (p1._2.getOrElse(k, 0.0) - p2._2.getOrElse(k, 0.0))).toMap)
+    case Product(factors) =>
+      val fg: Vector[(Double, Map[Symbol, Double])] = factors.map(evalWithGradient(_, valuation))
+      (fg.map(_._1).product, valuation.keys.map(k => k ->
+        alternateChoose(fg.map(_._1), fg.map(_._2.getOrElse(k, 0.0))).map(_.product).sum).toMap)
+    case Quotient(val1, val2) =>
+      val (p1, p2) = (evalWithGradient(val1, valuation), evalWithGradient(val2, valuation))
+      (p1._1 / p2._1, valuation.keys.map(k => k -> ((p1._2.getOrElse(k, 0.0) * p2._1 - p2._2.getOrElse(k, 0.0) * p1._1) / (p2._1 * p2._1))).toMap)
+  }
+
   def derive(term: Term, v: Var): Term = {
     def d(t: Term): Term = t match {
-      case Const(c) => Const(0)
+      case Const(_) => Const(0)
       case vn: Var => if (v == vn) Const(1) else Const(0)
       case Sum(summands) => Sum(summands.map(d))
       case Minus(val1, val2) => d(val1) - d(val2)
-      case Product(factors) => factors match {
-        case Nil => Const(0) // empty product means 1
-        case a :: Nil => d(a)
-        case a :: rest => d(a) * Product(rest) + a * d(Product(rest))
-      }
+      case Product(factors) => Sum(alternateChoose(factors, factors.map(derive(_, v))).map(Product))
       case Quotient(val1, val2) => (d(val1) * val2 - val1 * d(val2)) / (val2 * val2)
     }
 
     expand(d(term))
   }
 
+  private def alternateChoose[U](v1: Vector[U], v2: Vector[U]): Vector[Vector[U]] = {
+    val v = v1.zip(v2).zipWithIndex
+    v.indices.map(i => v.map(t => if (i == t._2) t._1._2 else t._1._1)).toVector
+  }
+
   def expand(term: Term): Term = term.normalize.substRules({
     case Product(factors) if factors.exists(_.isInstanceOf[Sum]) =>
-      val sumlist: List[List[Term]] = factors map {
+      val sumlist: Vector[Vector[Term]] = factors map {
         case Sum(summands) => summands
-        case t => List(t)
+        case t => Vector(t)
       }
-      val summandCombinations: List[List[Term]] = sumlist
-        .foldRight(List[List[Term]](Nil))((el, rest) => el.flatMap(p => rest.map(p :: _)))
-      Sum(summandCombinations.map(Product))
+      val summandCombinations: Vector[List[Term]] = sumlist
+        .foldRight(Vector[List[Term]](Nil))((el, rest) => el.flatMap(p => rest.map(p :: _)))
+      Sum(summandCombinations.map(p => Product(p.toVector)))
   }).normalize
 
   def simplify(term: Term): Term = expand(term).substRules({
     case Sum(summands) =>
-      val duplicates: Map[Term, List[Term]] = summands.groupBy((t: Term) => t)
+      val duplicates: Map[Term, Vector[Term]] = summands.groupBy((t: Term) => t)
       if (duplicates.exists(_._2.length > 1))
         Sum((summands.filterNot(duplicates.contains) ++ duplicates.map(p => simplify(Const(p._2.length) * p._1))).sorted)
       else Sum(summands.sorted)
@@ -113,15 +132,15 @@ case class Var(name: Symbol) extends Term {
   override protected def internalCompare(o: this.type): Int = name.name.compareTo(o.name.name)
 }
 
-case class Sum(summands: List[Term]) extends Term {
+case class Sum(summands: Vector[Term]) extends Term {
   override def toString: String = "(" + summands.mkString(" + ") + ")"
 
   override def normalize: Term = {
     val flattened = summands map (_.normalize) flatMap {
       case t: Sum => t.summands
-      case other => List(other)
+      case other => Vector(other)
     } filterNot (_ == Const(0))
-    if (flattened.isEmpty) this else if (flattened.length == 1) flattened(0) else Sum(flattened)
+    if (flattened.isEmpty) this else if (flattened.length == 1) flattened.head else Sum(flattened)
   }
 
   override def immediateSubterms: Iterator[Term] = summands.toIterator
@@ -150,17 +169,17 @@ case class Minus(value1: Term, value2: Term) extends Term {
   }
 }
 
-case class Product(factors: List[Term]) extends Term {
+case class Product(factors: Vector[Term]) extends Term {
   override def toString: String = "(" + factors.mkString(" * ") + ")"
 
   override def normalize: Term = {
     val flattened = factors map (_.normalize) flatMap {
       case t: Product => t.factors
-      case other => List(other)
+      case other => Vector(other)
     } filterNot (_ == Const(1))
     if (flattened.contains(Const(0))) Const(0)
     else if (flattened.isEmpty) this
-    else if (flattened.length == 1) flattened(0)
+    else if (flattened.length == 1) flattened.head
     else Product(flattened)
   }
 
