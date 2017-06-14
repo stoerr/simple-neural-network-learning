@@ -45,31 +45,13 @@ object Term {
 
   def apply[T <: Term](term: T): T = term
 
-  def eval(term: Term, valuation: Map[Symbol, Double]): Double = term match {
+  def eval(term: Term, valuation: Map[Var, Double]): Double = term match {
     case Const(c) => c
-    case Var(n) => valuation(n)
+    case t: Var => valuation(t)
     case Sum(summands) => summands.map(eval(_, valuation)).sum
     case Minus(val1, val2) => eval(val1, valuation) - eval(val2, valuation)
     case Product(factors) => factors.map(eval(_, valuation)).product
     case Quotient(val1, val2) => eval(val1, valuation) / eval(val2, valuation)
-  }
-
-  def evalWithGradient(term: Term, valuation: Map[Symbol, Double]): (Double, Map[Symbol, Double]) = term match {
-    case Const(c) => (c, Map())
-    case Var(n) => (valuation(n), Map(n -> 1.0))
-    case Sum(summands) =>
-      val parts = summands.map(evalWithGradient(_, valuation))
-      (parts.map(_._1).sum, valuation.keys.map(k => k -> parts.map(_._2.getOrElse(k, 0.0)).sum).toMap)
-    case Minus(val1, val2) =>
-      val (p1, p2) = (evalWithGradient(val1, valuation), evalWithGradient(val2, valuation))
-      (p1._1 - p2._1, valuation.keys.map(k => k -> (p1._2.getOrElse(k, 0.0) - p2._2.getOrElse(k, 0.0))).toMap)
-    case Product(factors) =>
-      val fg: Vector[(Double, Map[Symbol, Double])] = factors.map(evalWithGradient(_, valuation))
-      (fg.map(_._1).product, valuation.keys.map(k => k ->
-        alternateChoose(fg.map(_._1), fg.map(_._2.getOrElse(k, 0.0))).map(_.product).sum).toMap)
-    case Quotient(val1, val2) =>
-      val (p1, p2) = (evalWithGradient(val1, valuation), evalWithGradient(val2, valuation))
-      (p1._1 / p2._1, valuation.keys.map(k => k -> ((p1._2.getOrElse(k, 0.0) * p2._1 - p2._2.getOrElse(k, 0.0) * p1._1) / (p2._1 * p2._1))).toMap)
   }
 
   def derive(term: Term, v: Var): Term = {
@@ -113,21 +95,21 @@ object Term {
     case Product(factors) => Product(factors.sorted)
   }).normalize
 
-  def evalWithGradient2(term: Term, valuation: Map[Symbol, Double]): (Double, Symbol => Double) = term match {
+  def evalWithGradient(term: Term, valuation: Map[Var, Double]): (Double, Var => Double) = term match {
     case Const(c) => (c, _ => 0.0)
-    case Var(n) => (valuation(n), k => if (n == k) 1.0 else 0.0)
+    case v : Var => (valuation(v), k => if (v == k) 1.0 else 0.0)
     case Sum(summands) =>
-      val parts = summands.map(evalWithGradient2(_, valuation))
+      val parts = summands.map(evalWithGradient(_, valuation))
       (parts.map(_._1).sum, k => parts.map(_._2(k)).sum)
     case Minus(val1, val2) =>
-      val (p1, p2) = (evalWithGradient2(val1, valuation), evalWithGradient2(val2, valuation))
+      val (p1, p2) = (evalWithGradient(val1, valuation), evalWithGradient(val2, valuation))
       (p1._1 - p2._1, k => p1._2(k) - p2._2(k))
     case Product(factors) =>
-      val fg: Vector[(Double, (Symbol) => Double)] = factors.map(evalWithGradient2(_, valuation))
+      val fg: Vector[(Double, (Var) => Double)] = factors.map(evalWithGradient(_, valuation))
       val fgevals = fg.map(_._1)
       (fgevals.product, k => alternateChooseEval(fgevals, fg.map(_._2(k))))
     case Quotient(val1, val2) =>
-      val (p1, p2) = (evalWithGradient2(val1, valuation), evalWithGradient2(val2, valuation))
+      val (p1, p2) = (evalWithGradient(val1, valuation), evalWithGradient(val2, valuation))
       (p1._1 / p2._1, k => (p1._2(k) * p2._1 - p1._1 * p2._2(k)) / (p2._1 * p2._1))
   }
 

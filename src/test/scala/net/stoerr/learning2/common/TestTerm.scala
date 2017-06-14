@@ -23,8 +23,8 @@ class TestTerm extends FlatSpec with Matchers {
   it should "have an evaluation" in {
     val t = 'a / 'e + 'b * 'c - 5
     t.toString should be("(((a / e) + (b * c)) - 5.0)")
-    eval('a / 'e + 'b * 'c - 5, Map('a -> 3, 'b -> 5, 'c -> 7, 'e -> 1.5)) should be(3.0 / 1.5 + 5.0 * 7.0 - 5)
-    an[NoSuchElementException] should be thrownBy eval('a + 'b, Map('a -> 1))
+    eval('a / 'e + 'b * 'c - 5, Map('a -> 3.0, 'b -> 5.0, 'c -> 7.0, 'e -> 1.5).map(k => Var(k._1) -> k._2)) should be(3.0 / 1.5 + 5.0 * 7.0 - 5)
+    an[NoSuchElementException] should be thrownBy eval('a + 'b, Map('a -> 1.0).map(k => Var(k._1) -> k._2))
   }
 
   it should "implement derive" in {
@@ -42,32 +42,25 @@ class TestTerm extends FlatSpec with Matchers {
 
   it should "implement evalWithGradient" in {
     val t = 'a / 'b + 'c * 'c * 'd
-    val valu = Map('a -> 2.0, 'b -> 3.0, 'c -> 5.0, 'd -> 7.0)
+    val valu = Map('a -> 2.0, 'b -> 3.0, 'c -> 5.0, 'd -> 7.0).map(k => Var(k._1) -> k._2)
     val eg = evalWithGradient(t, valu)
     eg._1 should be(eval(t, valu))
     val vars = t.variables
 
-    def f(v: Symbol)(x: Double) = eval(t, valu + (v -> (valu(v) + x)))
+    def f(v: Var)(x: Double) = eval(t, valu + (v -> (valu(v) + x)))
 
     val grad = vars.map(v => derivation(f(v.name), 0.0))
     vars.map(v => eg._2(v.name)).toArray should be(closeTo(grad.toArray))
-
-    val (eg2v, eg2d) = evalWithGradient2(t, valu)
-    eg2v should be(eval(t, valu))
-    t.variables.map(_.name).toArray.map(eg2d) should be(closeTo(grad.toArray))
   }
 
   it should "perform fast enough" in {
     val upper = 20
     val t = (for (i <- 0 until upper; j <- 0 until upper) yield Symbol("x" + i) * Symbol("p" + i + "t" + j)) reduce(_ + _)
     val vars = t.variables
-    val valu = vars.map(v => v.name -> Random.nextGaussian()).toMap
+    val valu = vars.map(v => v -> Random.nextGaussian()).toMap
     Timer.timing("egalWithGradient")(evalWithGradient(t, valu))
-    Timer.timing("egalWithGradient2")(evalWithGradient2(t, valu))
     Timer.timing("egalWithGradient")(evalWithGradient(t, valu))
-    Timer.timing("egalWithGradient2")(evalWithGradient2(t, valu))
     Timer.timing("egalWithGradient")(evalWithGradient(t, valu))
-    Timer.timing("egalWithGradient2")(evalWithGradient2(t, valu))
   }
 
 }
