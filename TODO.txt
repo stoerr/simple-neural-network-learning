@@ -1,4 +1,6 @@
 Next steps:
-- Term.evalWithGradient
 - Term.evalWithGradientAndDerivations
 - NN.evalWithGradientAndDerivations
+
+Difference Term / NN: Term is defined top down, NN is defined bottom up (first this then that) -> large difference in calculations.
+Is it better to calculate the NN backwards?

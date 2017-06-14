@@ -7,9 +7,9 @@ package net.stoerr.learning2.common
  */
 class Timer(name: String = "timer") {
 
-  private val begin: Long = System.currentTimeMillis()
+  private val begin: Long = System.nanoTime()
 
-  def time(): Float = 0.001f * (System.currentTimeMillis() - begin)
+  def time(): Float = 1e-9f * (System.nanoTime() - begin)
 
   override def toString = name + ": " + time() + "s"
 

@@ -6,6 +6,7 @@ import DoubleArrayVector.derivation
 import net.stoerr.learning2.network.TestingHelper._
 
 import scala.language.implicitConversions
+import scala.util.Random
 
 class TestTerm extends FlatSpec with Matchers {
 
@@ -50,6 +51,23 @@ class TestTerm extends FlatSpec with Matchers {
 
     val grad = vars.map(v => derivation(f(v.name), 0.0))
     vars.map(v => eg._2(v.name)).toArray should be(closeTo(grad.toArray))
+
+    val (eg2v, eg2d) = evalWithGradient2(t, valu)
+    eg2v should be(eval(t, valu))
+    t.variables.map(_.name).toArray.map(eg2d) should be(closeTo(grad.toArray))
+  }
+
+  it should "perform fast enough" in {
+    val upper = 20
+    val t = (for (i <- 0 until upper; j <- 0 until upper) yield Symbol("x" + i) * Symbol("p" + i + "t" + j)) reduce(_ + _)
+    val vars = t.variables
+    val valu = vars.map(v => v.name -> Random.nextGaussian()).toMap
+    Timer.timing("egalWithGradient")(evalWithGradient(t, valu))
+    Timer.timing("egalWithGradient2")(evalWithGradient2(t, valu))
+    Timer.timing("egalWithGradient")(evalWithGradient(t, valu))
+    Timer.timing("egalWithGradient2")(evalWithGradient2(t, valu))
+    Timer.timing("egalWithGradient")(evalWithGradient(t, valu))
+    Timer.timing("egalWithGradient2")(evalWithGradient2(t, valu))
   }
 
 }

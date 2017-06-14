@@ -90,6 +90,9 @@ object Term {
     v.indices.map(i => v.map(t => if (i == t._2) t._1._2 else t._1._1)).toVector
   }
 
+  private def alternateChooseEval(v1: Vector[Double], v2: Vector[Double]): Double =
+    v1.indices.toIterator.map(i => v1.indices.toIterator.map(j => if (i == j) v2(j) else v1(j)).product).sum
+
   def expand(term: Term): Term = term.normalize.substRules({
     case Product(factors) if factors.exists(_.isInstanceOf[Sum]) =>
       val sumlist: Vector[Vector[Term]] = factors map {
@@ -109,6 +112,24 @@ object Term {
       else Sum(summands.sorted)
     case Product(factors) => Product(factors.sorted)
   }).normalize
+
+  def evalWithGradient2(term: Term, valuation: Map[Symbol, Double]): (Double, Symbol => Double) = term match {
+    case Const(c) => (c, _ => 0.0)
+    case Var(n) => (valuation(n), k => if (n == k) 1.0 else 0.0)
+    case Sum(summands) =>
+      val parts = summands.map(evalWithGradient2(_, valuation))
+      (parts.map(_._1).sum, k => parts.map(_._2(k)).sum)
+    case Minus(val1, val2) =>
+      val (p1, p2) = (evalWithGradient2(val1, valuation), evalWithGradient2(val2, valuation))
+      (p1._1 - p2._1, k => p1._2(k) - p2._2(k))
+    case Product(factors) =>
+      val fg: Vector[(Double, (Symbol) => Double)] = factors.map(evalWithGradient2(_, valuation))
+      val fgevals = fg.map(_._1)
+      (fgevals.product, k => alternateChooseEval(fgevals, fg.map(_._2(k))))
+    case Quotient(val1, val2) =>
+      val (p1, p2) = (evalWithGradient2(val1, valuation), evalWithGradient2(val2, valuation))
+      (p1._1 / p2._1, k => (p1._2(k) * p2._1 - p1._1 * p2._2(k)) / (p2._1 * p2._1))
+  }
 
 }
 
