@@ -1,6 +1,7 @@
 package net.stoerr.learning2.common
 
 import scala.language.implicitConversions
+import scala.util.Random
 
 /** Models a term. */
 sealed trait Term extends Comparable[Term] {
@@ -60,20 +61,29 @@ object Term {
       case vn: Var => if (v == vn) Const(1) else Const(0)
       case Sum(summands) => Sum(summands.map(d))
       case Minus(val1, val2) => d(val1) - d(val2)
-      case Product(factors) => Sum(alternateChoose(factors, factors.map(derive(_, v))).map(Product))
+      case Product(factors) => Sum(deriveProductRaw(factors, factors.map(derive(_, v))).map(Product))
       case Quotient(val1, val2) => (d(val1) * val2 - val1 * d(val2)) / (val2 * val2)
     }
 
     expand(d(term))
   }
 
-  private def alternateChoose[U](v1: Vector[U], v2: Vector[U]): Vector[Vector[U]] = {
+  private def sqr(x: Double) = x * x
+
+  private def deriveProductRaw[U](v1: Vector[U], v2: Vector[U]): Vector[Vector[U]] = {
     val v = v1.zip(v2).zipWithIndex
     v.indices.map(i => v.map(t => if (i == t._2) t._1._2 else t._1._1)).toVector
   }
 
-  private def alternateChooseEval(v1: Vector[Double], v2: Vector[Double]): Double =
-    v1.indices.toIterator.map(i => v1.indices.toIterator.map(j => if (i == j) v2(j) else v1(j)).product).sum
+  private def deriveProduct(v: Vector[Double], d: Vector[Double]): Double =
+    v.indices.toIterator.map(i => v.indices.toIterator.map(j => if (i == j) d(j) else v(j)).product).sum
+
+  private def secondDeriveProduct(v: Vector[Double], d: Vector[Double], d2: Vector[Double]) = {
+    val vprod = v.product
+    val sum1 = v.indices.map(i => d(i) / v(i)).sum
+    val sum2 = v.indices.map(i => (d2(i) * v(i) - sqr(d(i))) / sqr(d(i))).sum
+    (sqr(sum1) + sum2) / vprod
+  }
 
   def expand(term: Term): Term = term.normalize.substRules({
     case Product(factors) if factors.exists(_.isInstanceOf[Sum]) =>
@@ -97,7 +107,7 @@ object Term {
 
   def evalWithGradient(term: Term, valuation: Map[Var, Double]): (Double, Var => Double) = term match {
     case Const(c) => (c, _ => 0.0)
-    case v : Var => (valuation(v), k => if (v == k) 1.0 else 0.0)
+    case v: Var => (valuation(v), k => if (v == k) 1.0 else 0.0)
     case Sum(summands) =>
       val parts = summands.map(evalWithGradient(_, valuation))
       (parts.map(_._1).sum, k => parts.map(_._2(k)).sum)
@@ -107,11 +117,64 @@ object Term {
     case Product(factors) =>
       val fg: Vector[(Double, (Var) => Double)] = factors.map(evalWithGradient(_, valuation))
       val fgevals = fg.map(_._1)
-      (fgevals.product, k => alternateChooseEval(fgevals, fg.map(_._2(k))))
+      (fgevals.product, k => deriveProduct(fgevals, fg.map(_._2(k))))
     case Quotient(val1, val2) =>
       val (p1, p2) = (evalWithGradient(val1, valuation), evalWithGradient(val2, valuation))
       (p1._1 / p2._1, k => (p1._2(k) * p2._1 - p1._1 * p2._2(k)) / (p2._1 * p2._1))
   }
+
+  /** Returns the value for the valuation, the gradient, the directional derivation in the direction of the gradient and its second derivation. */
+  def evalWithGradientAndDirectionalDerivations(term: Term, valuation: Map[Var, Double]): (Double, Var => Double, Double, Double) = {
+    def quotrule2(f: Double, fd: Double, fdd: Double, g: Double, gd: Double, gdd: Double): Double =
+      (fdd * g * g - 2 * f * gd * gd + 2 * fd * g * gd - f * g * gdd) / (g * g * g)
+
+    def chain(term: Term): (Double, Var => Double, (Var => Double) => (Double, Double))
+    = term match {
+      case Const(c) => (c, _ => 0.0, _ => (0, 0))
+      case v: Var => (valuation(v), k => if (v == k) 1.0 else 0.0, grad => (grad(v), 0))
+      case Sum(summands) =>
+        val (evals: Vector[Double], grads: Vector[(Var) => Double], dirderiv: Vector[((Var) => Double) => (Double, Double)]) = summands.map(chain(_)).unzip3
+        (evals.sum, k => grads.map(_ (k)).sum, (grad) => dirderiv.map(_ (grad)).reduce((p1, p2) => (p1._1 + p2._1, p1._2 + p2._2)))
+      case Minus(val1, val2) =>
+        val (eval1, grad1, dirderiv1) = chain(val1)
+        val (eval2, grad2, dirderiv2) = chain(val2)
+        (eval1 - eval2, k => grad1(k) - grad2(k), (grad) => {
+          val (dd1, dd2) = (dirderiv1(grad), dirderiv2(grad))
+          (dd1._1 - dd2._1, dd1._2 - dd2._2)
+        })
+      case Product(factors) =>
+        val (evals: Vector[Double], grads: Vector[(Var) => Double], dirderivs: Vector[((Var) => Double) => (Double, Double)]) = factors.map(chain).unzip3
+        (evals.product, k => deriveProduct(evals, grads.map(_ (k))), (grad) => {
+          val (ds, d2s) = dirderivs.map(_ (grad)).unzip
+          (deriveProduct(evals, ds), secondDeriveProduct(evals, ds, d2s))
+        })
+      case Quotient(val1, val2) =>
+        val (eval1, grad1, dirderiv1) = chain(val1)
+        val (eval2, grad2, dirderiv2) = chain(val2)
+        (eval1 / eval2, k => (grad1(k) * eval2 - eval1 * grad2(k)) / (eval2 * eval2), (grad) => {
+          val (dd1, dd2) = (dirderiv1(grad), dirderiv2(grad))
+          ((eval1 * dd2._1 - dd1._1 * eval2) / (eval2 * eval2), quotrule2(eval1, dd1._1, dd1._2, eval2, dd2._1, dd2._2))
+        })
+    }
+
+    val (eval, grad, dirderiv) = chain(term)
+    val (d1, d2) = dirderiv(grad)
+    (eval, grad, d1, d2)
+  }
+
+  def random(maxDepth: Int, numVars: Int): Term =
+    if (maxDepth <= 0) Random.nextInt(2) match {
+      case 0 => Const(Random.nextGaussian())
+      case 1 => Var(Symbol("v" + (1 + Random.nextInt(numVars))))
+    } else {
+      val subterm = () => random(maxDepth - 1, numVars)
+      Random.nextInt(4) match {
+        case 0 => subterm() + subterm()
+        case 1 => subterm() - subterm()
+        case 2 => subterm() * subterm()
+        case 3 => subterm() / subterm()
+      }
+    }
 
 }
 

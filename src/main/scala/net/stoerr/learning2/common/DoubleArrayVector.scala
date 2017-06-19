@@ -11,6 +11,9 @@ object DoubleArrayVector {
 
   def derivation(f: Double => Double, x: Double): Double = (-f(x + 2 * eps) + 8 * f(x + eps) - 8 * f(x - eps) + f(x - 2 * eps)) / (12 * eps)
 
+  /** second derivative for 5-point stencil, −1/12	4/3	−5/2	4/3	−1/12 */
+  def derivation2(f: Double => Double, x: Double): Double = (-f(x + 2 * eps) + 16 * f(x + eps) - 30 * f(x) + 16 * f(x - eps) - f(x - 2 * eps)) / (12 * eps)
+
   def gradient(f: Array[Double] => Double, x: Array[Double]): Array[Double] = x.indices.map { i =>
     val fprojected = x.baseFunction(i) andThen f
     derivation(fprojected, 0)

@@ -1,9 +1,9 @@
 package net.stoerr.learning2.common
 
+import net.stoerr.learning2.common.DoubleArrayVector.{derivation, derivation2, eps}
 import net.stoerr.learning2.common.Term._
-import org.scalatest._
-import DoubleArrayVector.derivation
 import net.stoerr.learning2.network.TestingHelper._
+import org.scalatest._
 
 import scala.language.implicitConversions
 import scala.util.Random
@@ -55,12 +55,32 @@ class TestTerm extends FlatSpec with Matchers {
 
   it should "perform fast enough" in {
     val upper = 20
-    val t = (for (i <- 0 until upper; j <- 0 until upper) yield Symbol("x" + i) * Symbol("p" + i + "t" + j)) reduce(_ + _)
+    val t = (for (i <- 0 until upper; j <- 0 until upper) yield Symbol("x" + i) * Symbol("p" + i + "t" + j)) reduce (_ + _)
     val vars = t.variables
     val valu = vars.map(v => v -> Random.nextGaussian()).toMap
     Timer.timing("egalWithGradient")(evalWithGradient(t, valu))
     Timer.timing("egalWithGradient")(evalWithGradient(t, valu))
     Timer.timing("egalWithGradient")(evalWithGradient(t, valu))
+  }
+
+  it should behave like dgradcheck('a + 'b)
+
+  def dgradcheck(term: Term): Unit = {
+    val vars = term.variables
+    val valu = vars.map(v => (v, Random.nextGaussian())).toMap
+    val (tval, tgrad, tderiv, tderiv2) = evalWithGradientAndDirectionalDerivations(term, valu)
+
+    def f(v: Var)(x: Double) = eval(term, valu + (v -> (valu(v) + x)))
+
+    val grad = vars.map(v => derivation(f(v.name), 0.0))
+    vars.map(v => tgrad(v.name)).toArray should be(closeTo(grad.toArray))
+
+    def fdir(x: Double) = eval(term, vars.map(v => v -> (valu(v) + x * tgrad(v))).toMap)
+
+    val fd1 = derivation(fdir, 0.0)
+    val fd2 = derivation2(fdir, 0.0)
+    tderiv should be(fd1 +- eps)
+    tderiv2 should be(fd2 +- eps)
   }
 
 }
