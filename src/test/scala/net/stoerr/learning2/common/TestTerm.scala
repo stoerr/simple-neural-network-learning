@@ -63,7 +63,15 @@ class TestTerm extends FlatSpec with Matchers {
     Timer.timing("egalWithGradient")(evalWithGradient(t, valu))
   }
 
+  it should behave like dgradcheck('a + 2.5)
+  it should behave like dgradcheck('a * 2.5)
   it should behave like dgradcheck('a + 'b)
+  it should behave like dgradcheck('a * 'b)
+  it should behave like dgradcheck('a - 'b)
+  it should behave like dgradcheck('a / 'b)
+  it should behave like dgradcheck('a + 'b + 2.5)
+  it should behave like dgradcheck('a * 'b * 2.5)
+  it should behave like dgradcheck(Term.random(3, 3))
 
   def dgradcheck(term: Term): Unit = {
     val vars = term.variables
@@ -73,14 +81,16 @@ class TestTerm extends FlatSpec with Matchers {
     def f(v: Var)(x: Double) = eval(term, valu + (v -> (valu(v) + x)))
 
     val grad = vars.map(v => derivation(f(v.name), 0.0))
-    vars.map(v => tgrad(v.name)).toArray should be(closeTo(grad.toArray))
 
     def fdir(x: Double) = eval(term, vars.map(v => v -> (valu(v) + x * tgrad(v))).toMap)
 
     val fd1 = derivation(fdir, 0.0)
     val fd2 = derivation2(fdir, 0.0)
-    tderiv should be(fd1 +- eps)
-    tderiv2 should be(fd2 +- eps)
+
+    term.toString + " - evalWithGradientAndDirectionalDerivations" should "have correct value" in (tval should be(f(vars.head)(0.0)))
+    it should "have correct gradient" in (vars.map(v => tgrad(v.name)).toArray should be(closeTo(grad.toArray)))
+    it should "have correct 1st deriv" in (tderiv should be(fd1 +- eps))
+    it should "have correct 2nd deriv" in (tderiv2 should be(fd2 +- eps))
   }
 
 }

@@ -75,8 +75,11 @@ object Term {
     v.indices.map(i => v.map(t => if (i == t._2) t._1._2 else t._1._1)).toVector
   }
 
-  private def deriveProduct(v: Vector[Double], d: Vector[Double]): Double =
-    v.indices.toIterator.map(i => v.indices.toIterator.map(j => if (i == j) d(j) else v(j)).product).sum
+  def deriveProduct(v: Vector[Double], d: Vector[Double]): Double = {
+    val vproduct = v.product
+    if (0 != vproduct) v.indices.toIterator.map(i => d(i) / v(i)).sum * vproduct
+    else v.indices.toIterator.map(i => v.indices.toIterator.map(j => if (i == j) d(j) else v(j)).product).sum
+  }
 
   private def secondDeriveProduct(v: Vector[Double], d: Vector[Double], d2: Vector[Double]) = {
     val vprod = v.product
@@ -126,14 +129,14 @@ object Term {
   /** Returns the value for the valuation, the gradient, the directional derivation in the direction of the gradient and its second derivation. */
   def evalWithGradientAndDirectionalDerivations(term: Term, valuation: Map[Var, Double]): (Double, Var => Double, Double, Double) = {
     def quotrule2(f: Double, fd: Double, fdd: Double, g: Double, gd: Double, gdd: Double): Double =
-      (fdd * g * g - 2 * f * gd * gd + 2 * fd * g * gd - f * g * gdd) / (g * g * g)
+      (fdd * g * g - 2 * f * g * gd + 2 * f * gd * gd - f * g * gdd) / (g * g * g)
 
     def chain(term: Term): (Double, Var => Double, (Var => Double) => (Double, Double))
     = term match {
       case Const(c) => (c, _ => 0.0, _ => (0, 0))
       case v: Var => (valuation(v), k => if (v == k) 1.0 else 0.0, grad => (grad(v), 0))
       case Sum(summands) =>
-        val (evals: Vector[Double], grads: Vector[(Var) => Double], dirderiv: Vector[((Var) => Double) => (Double, Double)]) = summands.map(chain(_)).unzip3
+        val (evals: Vector[Double], grads: Vector[(Var) => Double], dirderiv: Vector[((Var) => Double) => (Double, Double)]) = summands.map(chain).unzip3
         (evals.sum, k => grads.map(_ (k)).sum, (grad) => dirderiv.map(_ (grad)).reduce((p1, p2) => (p1._1 + p2._1, p1._2 + p2._2)))
       case Minus(val1, val2) =>
         val (eval1, grad1, dirderiv1) = chain(val1)
@@ -152,8 +155,8 @@ object Term {
         val (eval1, grad1, dirderiv1) = chain(val1)
         val (eval2, grad2, dirderiv2) = chain(val2)
         (eval1 / eval2, k => (grad1(k) * eval2 - eval1 * grad2(k)) / (eval2 * eval2), (grad) => {
-          val (dd1, dd2) = (dirderiv1(grad), dirderiv2(grad))
-          ((eval1 * dd2._1 - dd1._1 * eval2) / (eval2 * eval2), quotrule2(eval1, dd1._1, dd1._2, eval2, dd2._1, dd2._2))
+          val ((dd1d, dd1dd), (dd2d, dd2dd)) = (dirderiv1(grad), dirderiv2(grad))
+          ((dd1d * eval2 - eval1 * dd2d) / (eval2 * eval2), quotrule2(eval1, dd1d, dd1dd, eval2, dd2d, dd2dd))
         })
     }
 
