@@ -78,7 +78,8 @@ object Term {
   def deriveProduct(v: Vector[Double], d: Vector[Double]): Double = {
     val vproduct = v.product
     if (0 != vproduct) v.indices.toIterator.map(i => d(i) / v(i)).sum * vproduct
-    else v.indices.toIterator.map(i => v.indices.toIterator.map(j => if (i == j) d(j) else v(j)).product).sum
+    else // v.indices.toIterator.map(i => v.indices.toIterator.map(j => if (i == j) d(j) else v(j)).product).sum
+      Some(v.indexOf(0.0)).map(i => v.indices.toIterator.map(j => if (i == j) d(j) else v(j)).product).sum
   }
 
   private def secondDeriveProduct(v: Vector[Double], d: Vector[Double], d2: Vector[Double]) = {
@@ -129,8 +130,9 @@ object Term {
   /** Returns the value for the valuation, the gradient, the directional derivation in the direction of the gradient and its second derivation. */
   def evalWithGradientAndDirectionalDerivations(term: Term, valuation: Map[Var, Double]): (Double, Var => Double, Double, Double) = {
     def quotrule2(f: Double, fd: Double, fdd: Double, g: Double, gd: Double, gdd: Double): Double =
-      (fdd * g * g - 2 * f * g * gd + 2 * f * gd * gd - f * g * gdd) / (g * g * g)
+      (fdd * g * g - 2 * fd * g * gd + 2 * f * gd * gd - f * g * gdd) / (g * g * g)
 
+    /* valuation, gradient, function of gradient to first and second directional derivation. */
     def chain(term: Term): (Double, Var => Double, (Var => Double) => (Double, Double))
     = term match {
       case Const(c) => (c, _ => 0.0, _ => (0, 0))
