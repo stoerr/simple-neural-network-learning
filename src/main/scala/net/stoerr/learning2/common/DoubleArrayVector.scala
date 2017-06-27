@@ -9,10 +9,12 @@ object DoubleArrayVector {
   /** step for numerical calcuations */
   val eps = 1e-6
 
-  def derivation(f: Double => Double, x: Double): Double = (-f(x + 2 * eps) + 8 * f(x + eps) - 8 * f(x - eps) + f(x - 2 * eps)) / (12 * eps)
+  /** step for numerical differentation */ private val deps = 1e-4
 
-  /** second derivative for 5-point stencil, −1/12	4/3	−5/2	4/3	−1/12 */
-  def derivation2(f: Double => Double, x: Double): Double = (-f(x + 2 * eps) + 16 * f(x + eps) - 30 * f(x) + 16 * f(x - eps) - f(x - 2 * eps)) / (12 * eps * eps)
+  def derivation(f: Double => Double, x: Double): Double = (-f(x + 2 * deps) + 8 * f(x + deps) - 8 * f(x - deps) + f(x - 2 * deps)) / (12 * deps)
+
+  /** second derivative for 5-point stencil, −1/12	4/3	−5/2	4/3	−1/12 http://www.holoborodko.com/pavel/numerical-methods/numerical-derivative/central-differences/ */
+  def derivation2(f: Double => Double, x: Double): Double = (-f(x + 2 * deps) + 16 * f(x + deps) - 30 * f(x) + 16 * f(x - deps) - f(x - 2 * deps)) / (12 * deps * deps)
 
   def gradient(f: Array[Double] => Double, x: Array[Double]): Array[Double] = x.indices.map { i =>
     val fprojected = x.baseFunction(i) andThen f

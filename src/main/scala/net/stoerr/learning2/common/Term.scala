@@ -82,11 +82,19 @@ object Term {
       Some(v.indexOf(0.0)).map(i => v.indices.toIterator.map(j => if (i == j) d(j) else v(j)).product).sum
   }
 
-  private def secondDeriveProduct(v: Vector[Double], d: Vector[Double], d2: Vector[Double]) = {
+  def secondDeriveProduct(v: Vector[Double], d: Vector[Double], d2: Vector[Double]): Double = {
     val vprod = v.product
-    val sum1 = v.indices.map(i => d(i) / v(i)).sum
-    val sum2 = v.indices.map(i => (d2(i) * v(i) - sqr(d(i))) / sqr(d(i))).sum
-    (sqr(sum1) + sum2) / vprod
+    if (0.0 != vprod) {
+      val sum1 = v.indices.map(i => d(i) / v(i)).sum
+      val sum2 = v.indices.map(i => (d2(i) * v(i) - sqr(d(i))) / sqr(v(i))).sum
+      (sqr(sum1) + sum2) * vprod
+    } else {
+      val zcol = v.indexOf(0.0)
+      (for (i <- v.indices.toIterator; j <- v.indices.toIterator if i != zcol || j != zcol) yield
+        v.indices.toIterator.map(k =>
+          if (i == k) if (j == k) d2(k) else d(k) else if (j == k) d(k) else v(k)
+        ).product).sum
+    }
   }
 
   def expand(term: Term): Term = term.normalize.substRules({
@@ -169,7 +177,7 @@ object Term {
 
   def random(maxDepth: Int, numVars: Int): Term =
     if (maxDepth <= 0) Random.nextInt(2) match {
-      case 0 => Const(Random.nextGaussian())
+      case 0 => Const(Random.nextInt(16) / 4.0 - 2)
       case 1 => Var(Symbol("v" + (1 + Random.nextInt(numVars))))
     } else {
       val subterm = () => random(maxDepth - 1, numVars)

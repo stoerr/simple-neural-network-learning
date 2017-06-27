@@ -75,7 +75,7 @@ class TestTerm extends FlatSpec with Matchers {
 
   def dgradcheck(term: Term): Unit = {
     val vars = term.variables
-    val valu = vars.map(v => (v, 1 + Random.nextGaussian() / 5)).toMap
+    val valu = vars.map(v => (v, Random.nextInt(10) / 5.0 - 0.9)).toMap
     val (tval, tgrad, tderiv, tderiv2) = evalWithGradientAndDirectionalDerivations(term, valu)
 
     def f(v: Var)(x: Double) = eval(term, valu + (v -> (valu(v) + x)))
@@ -90,7 +90,7 @@ class TestTerm extends FlatSpec with Matchers {
     term.toString + " - evalWithGradientAndDirectionalDerivations" should "have correct value" in (tval should be(f(vars.head)(0.0)))
     it should "have correct gradient" in (vars.map(v => tgrad(v.name)).toArray should be(closeTo(grad.toArray)))
     it should "have correct 1st deriv" in (tderiv should be(fd1 +- eps))
-    it should "have correct 2nd deriv" in (tderiv2 should be(fd2 +- 1e-3))
+    it should "have correct 2nd deriv" in (tderiv2 should be(fd2 +- eps))
   }
 
 }
