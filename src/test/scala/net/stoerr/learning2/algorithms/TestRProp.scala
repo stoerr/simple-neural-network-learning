@@ -12,14 +12,13 @@ class TestRProp extends FlatSpec with Matchers {
 
   "RProp" should "descent on a given function" in {
     def fd(args: Array[DValue]) = {
-      // minimum (0,0)
-      val dif = args(0) - args(1)
-      dif.cosh + (args(0) * args(0) + args(1) * args(1))
+      val (x, y) = (args(0), args(1))
+      (x - DValue(1.0)) ** 2 + (y - DValue(2.0)) ** 2 * DValue(2.0) + (x - y + DValue(1.0)) ** 4
     }
 
     val f: (Array[Double]) => Double = asDoubleFunction(fd)
     val fgrad: (Array[Double]) => (Double, Array[Double]) = asDoubleFunctionWithGradient(fd)
-    val (x, y, dy) = new RProp(f, fgrad, 100, Array(1001.0, 1000.0)).descent()
+    val (x, y, dy) = new RProp(f, fgrad, 100, Array(101.0, 100.0)).descent()
     println(x.toList + "\t" + y + "\t" + dy)
     dy should be < eps
     y should be < f(Array(0, 0)) + eps

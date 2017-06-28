@@ -14,10 +14,10 @@ object DValue {
     func(args.map(DValue(_))).value
 
   def asDoubleFunctionWithGradient(func: Array[DValue] => DValue)(args: Array[Double]): (Double, Array[Double]) = {
-    val varnames = (0 until args.length).map("v" + _).toArray
+    val varnames = args.indices.map("v" + _).toArray
     val dargs = (args, varnames).zipped.map(DValue(_, _))
     val fval = func(dargs)
-    (fval.value, varnames.map(fval.deriv(_)))
+    (fval.value, varnames.map(fval.deriv))
   }
 
 
@@ -59,6 +59,12 @@ case class DValue(value: Double, derivations: SortedMap[String, Double]) {
     val tanh = math.tanh(value)
     val derivation = 1 - tanh * tanh
     DValue(tanh, derivations.mapValues(_ * derivation))
+  }
+
+  def **(p: Int): DValue = p match {
+    case 0 => DValue(1.0)
+    case 1 => this
+    case _ => if (p > 0) this * (this ** (p - 1)) else DValue(1.0) / (this ** -p)
   }
 
 }

@@ -13,6 +13,12 @@ sealed trait Term extends Comparable[Term] {
 
   def /(o: Term): Term = Quotient(this, o)
 
+  def **(p: Int): Term = p match {
+    case 0 => Const(1.0)
+    case 1 => this
+    case _ => if (p > 0) this * (this ** (p - 1)) else Const(1.0) / (this ** -p)
+  }
+
   def normalize: Term = this
 
   def immediateSubterms: Iterator[Term]
@@ -188,6 +194,12 @@ object Term {
         case 3 => subterm() / subterm()
       }
     }
+
+  def asFunction(t: Term, vars: Seq[Var])(x: Array[Double]): Double = {
+    require(vars.length == x.length)
+    val valuation = (vars, x).zipped.toMap
+    eval(t, valuation)
+  }
 
 }
 
