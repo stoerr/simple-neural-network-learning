@@ -20,7 +20,7 @@ class TestBuildingblock extends FlatSpec with Matchers {
       funcOfParam(params) should be(60)
       val paramDeriv = gradient(funcOfParam, params)
       paramDeriv should be(closeTo(Array(2.0, 4, 6, 1, 2, 3)))
-      b.parameterGradient(params, in, b(params)(in), outDeriv) should be(closeTo(paramDeriv))
+      b._parameterGradient(params, in, b(params)(in), outDeriv) should be(closeTo(paramDeriv))
     }
 
     {
@@ -28,7 +28,7 @@ class TestBuildingblock extends FlatSpec with Matchers {
       funcOfInputs(in) should be(60)
       val inputDeriv = gradient(funcOfInputs, in)
       inputDeriv should be(closeTo(Array(6.0, 9, 12)))
-      b.inputGradient(params, in, b(params)(in), outDeriv) should be(closeTo(inputDeriv))
+      b._inputGradient(params, in, b(params)(in), outDeriv) should be(closeTo(inputDeriv))
     }
 
     {
@@ -63,7 +63,7 @@ class TestBuildingblock extends FlatSpec with Matchers {
         val funcOfInputs: Array[Double] => Double = i => b(params)(i) * outDeriv
         funcOfInputs(in) shouldNot be(0.0)
         val inputDeriv = gradient(funcOfInputs, in)
-        b.inputGradient(params, in, b(params)(in), outDeriv) should be(closeTo(inputDeriv))
+        b._inputGradient(params, in, b(params)(in), outDeriv) should be(closeTo(inputDeriv))
       }
 
       it should "have correct parameterDerivative" in {
@@ -71,7 +71,7 @@ class TestBuildingblock extends FlatSpec with Matchers {
         funcOfParam(params) shouldNot be(0.0)
         val paramDeriv = gradient(funcOfParam, params)
         paramDeriv.abs shouldNot be(0.0)
-        b.parameterGradient(params, in, b(params)(in), outDeriv) should be(closeTo(paramDeriv))
+        b._parameterGradient(params, in, b(params)(in), outDeriv) should be(closeTo(paramDeriv))
       }
     }
 
