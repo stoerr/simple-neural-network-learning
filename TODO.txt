@@ -6,3 +6,5 @@ Difference Term / NN: Term is defined top down, NN is defined bottom up (first t
 Is it better to calculate the NN backwards?
 
 https://mathics.angusgriffith.com/
+
+https://archive.ics.uci.edu/ml/datasets/iris

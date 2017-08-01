@@ -15,7 +15,10 @@ trait Buildingblock {
 
   def apply(parameters: Array[Double])(inputs: Array[Double]): Array[Double]
 
-  def +(other: Buildingblock) = Combined(this, other)
+  def +(other: Buildingblock) = other match {
+    case Combined(one, two) => Combined(Combined(this, one), two)
+    case _ => Combined(this, other)
+  }
 
   // def apply(inputs: Array[Array[Double]], parameters: Array[Double]): Array[Array[Double]] = inputs.map(this.apply(_, parameters))
 

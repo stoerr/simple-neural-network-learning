@@ -19,4 +19,13 @@ class TestExampleSet extends FlatSpec with Matchers {
     grad should be(closeTo(realgradient))
   }
 
+  it should "correctly read datasets" in {
+    val exampleSet = ExampleSet.fromDatafile("/uci/iris/iris.data")
+    exampleSet.numInputs should be(4)
+    exampleSet.numOutputs should be(3)
+    exampleSet.examples.size should be(150)
+    exampleSet.examples.headOption.map(i => (i._1.toList, i._2.toList)).get should
+      be(List(5.1, 3.5, 1.4, 0.2) -> List(0.5, -0.5, -0.5))
+  }
+
 }
